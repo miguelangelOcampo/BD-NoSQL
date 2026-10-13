@@ -105,3 +105,144 @@ Propondría las siguientes acciones:
 5. **Utilizar variables de entorno o un gestor de secretos:** Así se evita almacenar contraseñas directamente en el código fuente.
 
 **Conclusión:** Borrar la contraseña del archivo actual no es suficiente. Es necesario cambiar la credencial expuesta y gestionar su eliminación del historial del repositorio.
+
+# Parte B. Diagnóstico práctico
+
+## Autoevaluacion: Por mi parte necesitaria recordar operadores y funciones de SQL y python para trabajar con bases de datos. 
+
+## Parte A3.
+
+# 1. Definición de las reglas del negocio del caso
+
+* **Identificadores únicos:** Cada emprendedor, iniciativa y asesoría cuenta con un código único e irrepetible. Ejemplos: `INI-001`, `ASE-DEMO-001`.
+
+* **Relación emprendedor-iniciativa:** Cada iniciativa tiene un único emprendedor responsable existente al momento del registro. Una persona puede representar y liderar múltiples iniciativas.
+
+* **Vínculo de asesorías:** Cada asesoría se asocia obligatoriamente con una iniciativa existente y registra el código ficticio del asesor que la atiende.
+
+* **Sectores y etapas válidas:**
+
+  * Sectores permitidos: `tecnologia`, `alimentos`, `economia_circular`.
+  * Etapas didácticas permitidas: `idea`, `validacion`, `puesta_en_marcha`.
+  * Estas convenciones corresponden a la simulación didáctica.
+
+* **Estados operativos:**
+
+  * Estado de iniciativa: `activa` o `archivada`.
+  * Estado de asesoría: `programada`, `realizada` o `cancelada`.
+
+* **Gestión temporal de asesorías:** Se registra obligatoriamente la `fecha_programada`. Cuando la sesión se lleva a cabo, se registra la `fecha_realizacion`. Si hay reprogramaciones, la fecha real puede diferir de la programada, conservando la historia real y sin sobrescribir el registro original.
+
+* **Control de agenda de asesores:** No se deben programar simultáneamente dos asesorías para el mismo asesor en una misma franja horaria definida para el laboratorio.
+
+* **Impacto del archivo:** Archivar una iniciativa (`estado: "archivada"`) no elimina automáticamente ni oculta su historial de asesorías previas.
+
+---
+
+# 2. Definición de las seis consultas previstas (Q01–Q06)
+
+## Q01. Iniciativas activas por sector y etapa didáctica
+
+* **Actor:** Gestor o instructor de la unidad.
+* **Filtros:**
+
+  * `estado: "activa"`.
+  * Sector específico (ejemplo: `"tecnologia"`).
+  * Etapa didáctica (ejemplo: `"validacion"`).
+* **Campos de salida:**
+
+  * Código de iniciativa.
+  * Nombre de la iniciativa.
+  * Nombre o alias del emprendedor responsable.
+* **Orden:** Por código de iniciativa de forma ascendente.
+* **Frecuencia estimada:** Alta (diaria durante el comité de seguimiento).
+
+## Q02. Detalle de una iniciativa con su propuesta de valor y atributos específicos
+
+* **Actor:** Emprendedor o asesor.
+* **Filtros:** Código de iniciativa único (ejemplo: `codigo: "INI-001"`).
+* **Campos de salida:**
+
+  * Todos los campos generales.
+  * Atributos específicos correspondientes a su sector (ejemplo: canal de venta para alimentos o plataforma de entrega para software).
+* **Orden:** No aplica (documento único).
+* **Frecuencia estimada:** Media (por cada sesión de asesoría).
+
+## Q03. Iniciativas de un emprendedor responsable por estado
+
+* **Actor:** Emprendedor o administrador.
+* **Filtros:**
+
+  * Alias o identificador del emprendedor.
+  * Estado de la iniciativa: `activa` o `archivada`.
+* **Campos de salida:**
+
+  * Código de iniciativa.
+  * Nombre de la iniciativa.
+  * Sector.
+  * Etapa didáctica.
+* **Orden:** Por fecha o código de iniciativa descendente.
+* **Frecuencia estimada:** Baja (semanal o mensual).
+
+## Q04. Asesorías programadas pendientes por rango de fechas y modalidad
+
+* **Actor:** Asesor o coordinador de agenda.
+* **Filtros:**
+
+  * `estado: "programada"`.
+  * Modalidad: `"virtual"` o `"presencial"`.
+  * Rango de `fecha_programada`.
+* **Campos de salida:**
+
+  * ID de asesoría.
+  * Fecha programada.
+  * Código y nombre de la iniciativa.
+  * Temas a tratar.
+* **Orden:** Cronológico ascendente por `fecha_programada`.
+* **Frecuencia estimada:** Alta (diaria).
+
+## Q05. Historial de asesorías de una iniciativa
+
+* **Actor:** Asesor o emprendedor.
+* **Filtros:** Código de iniciativa de referencia.
+* **Campos de salida:**
+
+  * ID de asesoría.
+  * Estado.
+  * Temas tratados.
+  * Fecha programada.
+  * Fecha de realización.
+  * Código del asesor.
+* **Orden:** Cronológico descendente por fecha de asesoría.
+* **Frecuencia estimada:** Media.
+
+## Q06. Cantidad de asesorías realizadas por sector de iniciativa y mes
+
+* **Actor:** Director de la unidad de emprendimiento (para reportes estadísticos).
+* **Filtros:**
+
+  * Estado de asesoría: `realizada`.
+  * Rango de meses y años.
+* **Campos de salida:**
+
+  * Sector de la iniciativa.
+  * Mes del reporte.
+  * Conteo total de asesorías.
+* **Orden:** Agrupado por sector y mes.
+* **Frecuencia estimada:** Baja (mensual o trimestral).
+
+**Nota de diseño:** Se debe decidir si el sector consultado corresponde al valor actual de la iniciativa o al histórico registrado en el momento en que se prestó la asesoría.
+
+### 3. Preguntas clave para la persona responsable de la unidad y riesgos identificados
+
+#### Preguntas para el responsable
+
+1. ¿Una iniciativa archivada puede reactivarse posteriormente bajo el mismo código o requiere la creación de una nueva iniciativa?
+
+2. ¿Los informes mensuales de asesorías requieren conservar el sector histórico de la iniciativa, aunque esta haya cambiado de sector con el tiempo?
+
+#### Riesgo identificado
+
+* **Inconsistencia por concurrencia de agendas:** Existe el riesgo de que dos asesores diferentes programen simultáneamente una asesoría para el mismo asesor en una franja horaria idéntica, antes de que el motor de base de datos valide las restricciones de índice único o transaccionalidad.
+
+  Este mecanismo de control transaccional formal se abordará en fases avanzadas del curso.
